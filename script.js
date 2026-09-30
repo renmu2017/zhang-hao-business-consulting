@@ -1,76 +1,49 @@
 const header = document.querySelector("[data-header]");
-const year = document.querySelector("[data-year]");
+const pages = [...document.querySelectorAll("main > .page")];
+const pageLinks = [...document.querySelectorAll(".page-nav a")];
 const toast = document.querySelector("[data-toast]");
-const copyButtons = document.querySelectorAll("[data-copy]");
-const revealItems = document.querySelectorAll(".reveal");
-const parallax = document.querySelector("[data-parallax]");
+document.querySelectorAll("[data-year]").forEach((year) => { year.textContent = new Date().getFullYear(); });
 
-if (year) year.textContent = new Date().getFullYear();
-
-const syncHeader = () => {
-  header?.classList.toggle("is-scrolled", window.scrollY > 16);
+const syncNavigation = () => {
+  const middle = window.innerHeight * .5;
+  const active = pages.find((page) => {
+    const box = page.getBoundingClientRect();
+    return box.top <= middle && box.bottom > middle;
+  }) || pages[0];
+  const onCity = active === pages[0];
+  document.body.classList.toggle("at-city", onCity);
+  if (header) header.inert = onCity;
+  pageLinks.forEach((link) => {
+    if (link.hash === "#" + active.id) link.setAttribute("aria-current", "location");
+    else link.removeAttribute("aria-current");
+  });
 };
-
-syncHeader();
-window.addEventListener("scroll", syncHeader, { passive: true });
-
-if ("IntersectionObserver" in window) {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add("is-visible");
-        observer.unobserve(entry.target);
-      });
-    },
-    { threshold: 0.13 }
-  );
-
-  revealItems.forEach((item) => observer.observe(item));
-} else {
-  revealItems.forEach((item) => item.classList.add("is-visible"));
-}
+let navFrame;
+window.addEventListener("scroll", () => {
+  if (navFrame) return;
+  navFrame = requestAnimationFrame(() => { navFrame = null; syncNavigation(); });
+}, { passive: true });
+window.addEventListener("resize", syncNavigation);
+window.addEventListener("pageshow", syncNavigation);
+window.addEventListener("hashchange", syncNavigation);
+syncNavigation();
 
 let toastTimer;
-const showToast = (message) => {
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.add("is-visible");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 1800);
-};
-
-copyButtons.forEach((button) => {
+document.querySelectorAll("[data-copy]").forEach((button) => {
   button.addEventListener("click", async () => {
-    const value = button.dataset.copy;
     const label = button.querySelector("[data-copy-label]");
-
     try {
-      await navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText(button.dataset.copy);
       if (label) label.textContent = "已复制";
-      showToast("微信号已复制");
-      setTimeout(() => {
-        if (label) label.textContent = "复制微信号";
-      }, 1800);
+      toast.textContent = "微信号已复制";
     } catch {
-      showToast(`请复制：${value}`);
+      toast.textContent = "请复制微信号：" + button.dataset.copy;
     }
+    toast.classList.add("is-visible");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove("is-visible");
+      if (label) label.textContent = "复制微信号 ↗";
+    }, 1800);
   });
 });
-
-const finePointer = window.matchMedia("(pointer: fine)");
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-if (parallax && finePointer.matches && !reducedMotion.matches) {
-  parallax.addEventListener("pointermove", (event) => {
-    const rect = parallax.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width - 0.5;
-    const y = (event.clientY - rect.top) / rect.height - 0.5;
-    parallax.style.transform = `perspective(1000px) rotateX(${-y * 2.4}deg) rotateY(${x * 3.2}deg)`;
-  });
-
-  parallax.addEventListener("pointerleave", () => {
-    parallax.style.transform = "perspective(1000px) rotateX(0deg) rotateY(0deg)";
-  });
-}
-
