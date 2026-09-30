@@ -1,6 +1,6 @@
 import * as THREE from "./assets/vendor/three.module.js";
 import { Reflector } from "./assets/vendor/Reflector.js";
-import { DURATION, STORY } from "./city-flight.js?v=20s-1";
+import { DURATION, STORY } from "./city-flight.js?v=20s-2";
 
 export function createCity(renderer) {
   const scene = new THREE.Scene();
@@ -431,7 +431,7 @@ export function createCity(renderer) {
     }
     paint(null);
     const artwork = new Image(); artwork.decoding = "async";
-    artwork.fetchPriority = artworkPath.includes("product") ? "high" : "auto";
+    artwork.fetchPriority = "high";
     texture.userData.pendingArtwork = artwork;
     artworkLoads.push(new Promise(resolve => {
       artwork.onload = () => {paint(artwork); texture.userData.pendingArtwork = null; resolve(true);};

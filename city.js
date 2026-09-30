@@ -1,6 +1,6 @@
 import * as THREE from "./assets/vendor/three.module.js";
-import { createCity } from "./city-world.js?v=20s-1";
-import { DURATION, STATIC_TIME, STORY, cameraAt } from "./city-flight.js?v=20s-1";
+import { createCity } from "./city-world.js?v=20s-2";
+import { DURATION, STATIC_TIME, STORY, cameraAt } from "./city-flight.js?v=20s-2";
 
 const host = document.querySelector(".city-intro");
 const backdrop = document.querySelector(".city-backdrop");
