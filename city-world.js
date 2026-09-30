@@ -1,6 +1,6 @@
 import * as THREE from "./assets/vendor/three.module.js";
 import { Reflector } from "./assets/vendor/Reflector.js";
-import { DURATION, STORY } from "./city-flight.js";
+import { DURATION, STORY } from "./city-flight.js?v=20s-1";
 
 export function createCity(renderer) {
   const scene = new THREE.Scene();
@@ -10,7 +10,6 @@ export function createCity(renderer) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.35));
   scene.add(new THREE.HemisphereLight(0x7ba9cc, 0x080c17, 1.1));
   const moon = new THREE.DirectionalLight(0x93bddc, 2.8);
   moon.position.set(-65, 110, 50); scene.add(moon);
@@ -432,9 +431,11 @@ export function createCity(renderer) {
     }
     paint(null);
     const artwork = new Image(); artwork.decoding = "async";
+    artwork.fetchPriority = artworkPath.includes("product") ? "high" : "auto";
+    texture.userData.pendingArtwork = artwork;
     artworkLoads.push(new Promise(resolve => {
-      artwork.onload = () => {paint(artwork); resolve(true);};
-      artwork.onerror = () => resolve(false);
+      artwork.onload = () => {paint(artwork); texture.userData.pendingArtwork = null; resolve(true);};
+      artwork.onerror = () => {texture.userData.pendingArtwork = null; resolve(false);};
     }));
     artwork.src = artworkPath;
     return texture;
@@ -449,7 +450,7 @@ export function createCity(renderer) {
     const group = new THREE.Group(); group.position.set(sign.x, sign.y, sign.z); parent.add(group);
     const backing = new THREE.Mesh(new THREE.BoxGeometry(sign.w + .9, h + .9, .6), material.dark); group.add(backing);
     const screenMaterial = new THREE.ShaderMaterial({
-      uniforms: {uMap: {value: screenTexture(sign.title, sign.english, sign.detail, sign.color, "./assets/andy-billboard-" + ["product", "agent-v2", "growth-v2"][index] + ".png")},
+      uniforms: {uMap: {value: screenTexture(sign.title, sign.english, sign.detail, sign.color, "./assets/andy-billboard-" + ["product", "agent-v2", "growth-v2"][index] + ".webp")},
         uTime: timeUniform, uColor: {value: new THREE.Color(sign.color)}, uIndex: {value: index}, uFocus: {value: 1}},
       vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
       fragmentShader: `
@@ -647,8 +648,21 @@ export function createCity(renderer) {
 
   return {
     camera, heroes, signs, artworkReady: Promise.all(artworkLoads),
+    async prepare() {
+      // Warm every facade and both post-process programs before the first flight,
+      // so a new building entering view does not trigger a shader compilation.
+      renderer.setRenderTarget(target);
+      await renderer.compileAsync(scene, camera);
+      quad.material = blur;
+      await renderer.compileAsync(postScene, postCamera);
+      quad.material = post; renderer.setRenderTarget(null);
+      await renderer.compileAsync(postScene, postCamera);
+    },
     setOpening(opening) {openingAmount = opening; left.position.x = -opening * 20; right.position.x = opening * 20;},
     resize(w, h) {
+      // Keep supersampling for small screens and bound fill cost on large Retina
+      // windows. The HDR scene retains its own multisample antialiasing.
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 1.3, Math.sqrt(2800000 / (w * h))));
       camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h, false);
       const ratio = renderer.getPixelRatio(), rw = Math.floor(w * ratio), rh = Math.floor(h * ratio);
       target.setSize(rw, rh);
@@ -673,7 +687,7 @@ export function createCity(renderer) {
       billboards.forEach(({material: mat}, i) => {
         const direct = Math.abs(story - STORY.reads[i]);
         const distance = Math.min(direct, DURATION - direct);
-        const focus = 1 - THREE.MathUtils.smoothstep(distance, 1.4, 3.4);
+        const focus = 1 - THREE.MathUtils.smoothstep(distance, .95, 2.15);
         mat.uniforms.uFocus.value = .45 + focus * .65;
       });
       vehicles.forEach(({group, start, speed, direction}) => {group.position.z = ((start + time * speed * direction + 10000) % 370) - 325;});

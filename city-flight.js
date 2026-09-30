@@ -1,14 +1,14 @@
 // Flight arcs share their tangents with the camera's heading. Position is C4,
 // so steering, acceleration and jerk stay continuous without a spring or lag.
-export const DURATION = 29.95;
-export const STORY = { reads: [1.85, 8.85, 15.85], readHalf: .6, revealStart: 21.95, revealEnd: 23.95, fade: .7 };
+export const DURATION = 20;
+export const STORY = { reads: [1.4, 5.7, 10], readHalf: .35, revealStart: 14, revealEnd: 16, fade: .55 };
 export const STATIC_TIME = (STORY.revealStart + STORY.revealEnd) / 2;
 const targets = [[-27, 22, -22.5], [28, 32, -57.5], [-29, 43, -101.5]];
 const readingPositions = [[0, 19, 18], [0, 28, -17.5], [0, 34, -61]];
 const towards = (position, target) => {
   const vector = target.map((value, axis) => value - position[axis]);
   const length = Math.hypot(...vector);
-  return vector.map(value => value * 5 / length);
+  return vector.map(value => value * 8 / length);
 };
 const initial = [8, 18.1, 30], wide = [0, 78, 45], wideTarget = [0, 48, -190];
 export const SHOTS = [

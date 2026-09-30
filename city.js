@@ -1,6 +1,6 @@
 import * as THREE from "./assets/vendor/three.module.js";
-import { createCity } from "./city-world.js";
-import { DURATION, STATIC_TIME, STORY, cameraAt } from "./city-flight.js";
+import { createCity } from "./city-world.js?v=20s-1";
+import { DURATION, STATIC_TIME, STORY, cameraAt } from "./city-flight.js?v=20s-1";
 
 const host = document.querySelector(".city-intro");
 const backdrop = document.querySelector(".city-backdrop");
@@ -15,14 +15,16 @@ const chapter = document.querySelector("[data-chapter]");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({canvas, antialias: true, alpha: false, powerPreference: "high-performance"});
+  renderer = new THREE.WebGLRenderer({canvas, antialias: false, alpha: false, powerPreference: "high-performance"});
 } catch {
   host.dataset.status = "fallback";
 }
 if (renderer) startCity();
 
-function startCity() {
+async function startCity() {
   const world = createCity(renderer), camera = world.camera;
+  world.resize(backdrop.clientWidth, backdrop.clientHeight);
+  await world.prepare();
   const position = new THREE.Vector3(), look = new THREE.Vector3(), offset = new THREE.Vector3();
   const travelPosition = new THREE.Vector3(), travelLook = new THREE.Vector3();
   let elapsed = 0, ambient = 0, previous = 0, frame = 0, userPaused = false, contextLost = false;
@@ -62,7 +64,8 @@ function startCity() {
     host.dataset.elapsed = story.toFixed(2); host.dataset.cycles = String(Math.floor(elapsed / DURATION));
     host.dataset.paused = String(userPaused); host.dataset.duration = String(DURATION);
     backdrop.dataset.travel = scrollPosition.toFixed(3);
-    chapter.textContent = String(Math.min(3, index + 1)).padStart(2, "0");
+    const chapterText = String(Math.min(3, index + 1)).padStart(2, "0");
+    if (chapter.textContent !== chapterText) chapter.textContent = chapterText;
     world.render(reducedMotion.matches ? STATIC_TIME : ambient, story);
     host.dataset.status = "ready";
   }
@@ -73,7 +76,9 @@ function startCity() {
   function tick(now) {
     frame = 0;
     if (document.hidden || userPaused || contextLost || reducedMotion.matches) return;
-    const delta = previous ? (now - previous) / 1000 : 0;
+    // A decoding/upload or browser task must not teleport the camera on its
+    // next frame. Normal 60/30 Hz frames still advance at their real cadence.
+    const delta = previous ? Math.min(Math.max((now - previous) / 1000, 0), .05) : 0;
     previous = now; ambient += delta;
     if (scrollPosition < .01) elapsed += delta;
     // Reading pages use a lower background rate; scrolling always renders immediately.

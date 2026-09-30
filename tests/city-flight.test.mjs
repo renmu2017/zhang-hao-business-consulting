@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { DURATION, SHOTS, STORY, STATIC_TIME, flightAt, cameraAt } from '../city-flight.js';
 
 const keys = ['position', 'look'];
+test('the full city loop lasts twenty seconds and preserves the ANDY reading hold', () => {
+  assert.equal(DURATION, 20);
+  assert.equal(STORY.revealEnd - STORY.revealStart, 2);
+});
 const close = (a, b, tolerance, label) => a.forEach((value, axis) => {
   assert.ok(Number.isFinite(value) && Math.abs(value - b[axis]) < tolerance,
     `${label}, axis ${axis}: ${value} versus ${b[axis]}`);
@@ -32,7 +36,7 @@ test('advertisement passes keep moving instead of holding a static camera', () =
   for (const t of STORY.reads) {
     const start = flightAt(t - .2).position, end = flightAt(t + .2).position;
     const distance = Math.hypot(...end.map((v, i) => v - start[i]));
-    assert.ok(distance > .05 && distance < 3, `reading pass at ${t}: ${distance}`);
+    assert.ok(distance > .05 && distance < 3.5, `reading pass at ${t}: ${distance}`);
   }
 });
 
@@ -158,7 +162,7 @@ test('the first portrait advertisement no longer dominates the reading time', ()
     }
     return readable;
   });
-  durations.forEach((duration, i) => assert.ok(duration > 2.8 && duration < 4.8,
+  durations.forEach((duration, i) => assert.ok(duration > 2.1 && duration < 3.4,
     `advertisement ${i} has an unbalanced reading window: ${duration}`));
   assert.ok(durations[0] <= durations[1] * 1.1, `the product pass is still too long: ${durations}`);
   assert.ok(Math.max(...durations) / Math.min(...durations) < 1.3, `unbalanced advertisement timing: ${durations}`);
@@ -166,9 +170,9 @@ test('the first portrait advertisement no longer dominates the reading time', ()
 
 test('motion jerk is continuous when entering and leaving every camera shot', () => {
   const jerkAt = (t, key, side, aspect) => {
-    // Convergence was checked from .002 to .00025; larger steps include too
+    // Convergence was checked from .001 to .0002; larger steps include too
     // much of the adjacent turn, while smaller ones amplify floating-point noise.
-    const h = .00025 * side;
+    const h = .0003 * side;
     const p = [0, 1, 2, 3, 4].map(i => cameraAt(t + i * h, aspect)[key]);
     return p[0].map((v, i) => (-5 * v + 18 * p[1][i] - 24 * p[2][i] + 14 * p[3][i] - 3 * p[4][i]) / (2 * h ** 3));
   };
@@ -186,8 +190,8 @@ test('all transitions keep translation acceleration and turning speed within the
       const before = cameraAt(t - h, aspect), pose = cameraAt(t, aspect), after = cameraAt(t + h, aspect);
       const acceleration = Math.hypot(...pose.position.map((v, i) => (after.position[i] - 2 * v + before.position[i]) / h ** 2));
       const turningSpeed = Math.hypot(...pose.rotation.map((_, i) => (after.rotation[i] - before.rotation[i]) / (2 * h))) * 180 / Math.PI;
-      assert.ok(acceleration < 50, `sudden translation at ${t}: ${acceleration}`);
-      assert.ok(turningSpeed < 20, `sudden turn at ${t}: ${turningSpeed}`);
+      assert.ok(acceleration < 100, `sudden translation at ${t}: ${acceleration}`);
+      assert.ok(turningSpeed < 33, `sudden turn at ${t}: ${turningSpeed}`);
     }
   }
 });
